@@ -6,28 +6,42 @@ root = Tk()
 root.title("Inventory Manager")
 root.geometry("1000x500")
 
-#create database or connect to existing
-
 conn = sqlite3.connect('card.db')
-
-#create a cursor
 c = conn.cursor()
 
-#create a table
 c.execute(""" CREATE TABLE if not exists cards (
-    card_id text,
-    card_name text,
-    card_tcg text,
-    card_type text,
-    card_amount integer,
-    card_price real,
-    card_location text
-    card_note text
-    )
-    """)
+                card_id TEXT,
+                card_name TEXT,
+                card_tcg TEXT,
+                card_type TEXT,
+                card_amount TEXT,
+                card_price TEXT,
+                card_location TEXT,
+                card_note TEXT)
+                """)
 
 conn.commit()
 conn.close()
+
+def query_database():
+    conn = sqlite3.connect('card.db')
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM cards")
+    records = c.fetchall()
+    global count
+    count = 0
+
+    for record in records:
+        if count % 2 == 0:
+            my_tree.insert(parent='', index='end', iid=count, text='', values=(record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7]), tags=('evenrow',))
+        else:
+            my_tree.insert(parent='', index='end', iid=count, text='', values=(record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7]), tags=('oddrow',))
+
+        count += 1
+
+    conn.commit()
+    conn.close()
 
 #add some style
 style = ttk.Style()
@@ -87,29 +101,9 @@ my_tree.heading("Price", text="Price", anchor=CENTER)
 my_tree.heading("Location", text="Location", anchor=CENTER)
 my_tree.heading("Note", text="Note", anchor=CENTER)
 
-#temp data
-data = [
-    ["wefwe", "weofwgeggfe", 14 ,"qwdgtgqwd", 33, "wefoiwrergerf", 233314, "wefergerwf"],
-    ["wewefdfwe", "weovevfwfe", 142 ,"qwdgtgwrfwqwd", 23, "wefofegiwerf", 2353654, "wefeerfwf"],
-    ["weffwefwe", "weovvhhfwfe", 1444 ,"qwdfsaqwd", 35, "wefoierffggwerf", 23314, "wefegergerwf"],
-    ["wefgergergwe", "weojjtfwfe", 111 ,"qwdefegqwd", 36, "weforgfefeiwerf", 2313244, "weerfqdweegfwf"],
-    ["wefefergewe", "weofhthtyhwfe", 145 ,"qwdhghqwd", 332, "wefoegergeiwerf", 232124, "wefwdfwf"]
-]
-
 #striped rows
 my_tree.tag_configure('oddrow', background="white")
 my_tree.tag_configure('evenrow', background="lightgrey")
-
-global count
-count = 0
-
-for record in data:
-    if count % 2 == 0:
-        my_tree.insert(parent='', index='end', iid=count, text='', values=(record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7]), tags=('evenrow',))
-    else:
-        my_tree.insert(parent='', index='end', iid=count, text='', values=(record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7]), tags=('oddrow',))
-
-    count += 1
 
 #adding record entry boxes
 data_frame = LabelFrame(root, text="Record")
@@ -209,16 +203,38 @@ def move_down():
     for row in reversed(rows):
         my_tree.move(row, my_tree.parent(row), my_tree.index(row)+1)
 
-#Remove Selected Records
-def remove_selected():
-    x = my_tree.selection()
-    for record in x:
-        my_tree.delete(record)
-
 #Update Selected Record
 def update_record():
     selected = my_tree.focus()
     my_tree.item(selected, text="", values=(id_entry.get(), name_entry.get(), tcg_entry.get(), type_entry.get(), amount_entry.get(), price_entry.get(), location_entry.get(), note_entry.get(),))
+
+    #update the database
+    conn = sqlite3.connect('card.db')
+    c = conn.cursor()
+
+    c.execute("""UPDATE cards SET
+                        card_name = :name,
+                        card_tcg = :tcg,
+                        card_type = :type,
+                        card_amount = :amount,
+                        card_price = :price,
+                        card_location = :location,
+                        card_note = :note
+
+                   WHERE card_id = :id""",
+                   {
+                        'name': name_entry.get(),
+                        'tcg': tcg_entry.get(),
+                        'type': type_entry.get(),
+                        'amount': amount_entry.get(),
+                        'price': price_entry.get(),
+                        'location': location_entry.get(),
+                        'note': note_entry.get(),
+                        'id': id_entry.get(),
+                   })
+
+    conn.commit()
+    conn.close()
 
     #Clear entry boxes
     id_entry.delete(0, END)
@@ -230,6 +246,65 @@ def update_record():
     location_entry.delete(0, END)
     note_entry.delete(0, END)
 
+#add a new record to db
+def add_record():
+
+    conn = sqlite3.connect('card.db')
+    c = conn.cursor()
+
+    c.execute("INSERT INTO cards VALUES (:id, :name, :tcg, :type, :amount, :price, :location, :note)",
+                   {
+                        'id': id_entry.get(),
+                        'name': name_entry.get(),
+                        'tcg': tcg_entry.get(),
+                        'type': type_entry.get(),
+                        'amount': amount_entry.get(),
+                        'price': price_entry.get(),
+                        'location': location_entry.get(),
+                        'note': note_entry.get(),
+                   })
+
+    conn.commit()
+    conn.close()
+    #Clear entry boxes
+    id_entry.delete(0, END)
+    name_entry.delete(0, END)
+    tcg_entry.delete(0, END)
+    type_entry.delete(0, END)
+    amount_entry.delete(0, END)
+    price_entry.delete(0, END)
+    location_entry.delete(0, END)
+    note_entry.delete(0, END)
+
+    #clear the treeview table
+    my_tree.delete(*my_tree.get_children())
+    query_database()
+
+#delete entry in db
+def delete_record():
+    
+    conn = sqlite3.connect('card.db')
+    c = conn.cursor()
+
+    c.execute("DELETE FROM cards WHERE card_id =" + id_entry.get())
+
+    conn.commit()
+    conn.close()
+    #Clear entry boxes
+    id_entry.delete(0, END)
+    name_entry.delete(0, END)
+    tcg_entry.delete(0, END)
+    type_entry.delete(0, END)
+    amount_entry.delete(0, END)
+    price_entry.delete(0, END)
+    location_entry.delete(0, END)
+    note_entry.delete(0, END)
+
+    #clear the treeview table
+    my_tree.delete(*my_tree.get_children())
+    query_database()
+
+
 #Add buttons
 button_frame = LabelFrame(root, text="Commands")
 button_frame.pack(fill="x", expand="yes", padx=20)
@@ -237,10 +312,10 @@ button_frame.pack(fill="x", expand="yes", padx=20)
 update_button = Button(button_frame, text="Update Record", command = update_record)
 update_button.grid(row=0, column=0, padx=10, pady=10)
 
-add_button = Button(button_frame, text="Add Record")
+add_button = Button(button_frame, text="Add Record", command = add_record)
 add_button.grid(row=0, column=1, padx=10, pady=10)
 
-remove_selected_button = Button(button_frame, text="Remove Selected", command = remove_selected)
+remove_selected_button = Button(button_frame, text="Delete Selected", command = delete_record)
 remove_selected_button.grid(row=0, column=4, padx=10, pady=10)
 
 move_up_button = Button(button_frame, text="Move Up", command = move_up)
@@ -255,5 +330,8 @@ clear_record_button.grid(row=0, column=7, padx=10, pady=10)
 #Bind the treeview
 
 my_tree.bind("<ButtonRelease-1>", select_record)
+
+#pull data from db on start
+query_database()
 
 root.mainloop()
