@@ -2,14 +2,16 @@ from tkinter import *
 from tkinter import ttk
 import sqlite3
 
+#creating window
 root = Tk()
 root.title("Inventory Manager")
 root.geometry("1000x500")
 
-conn = sqlite3.connect('card.db')
+#connecting/creating db file
+conn = sqlite3.connect('inventoryManager.db')
 c = conn.cursor()
 
-c.execute(""" CREATE TABLE if not exists cards (
+c.execute(""" CREATE TABLE if not exists inventory (
                 card_id TEXT,
                 card_name TEXT,
                 card_tcg TEXT,
@@ -24,10 +26,10 @@ conn.commit()
 conn.close()
 
 def query_database():
-    conn = sqlite3.connect('card.db')
+    conn = sqlite3.connect('inventoryManager.db')
     c = conn.cursor()
 
-    c.execute("SELECT * FROM cards")
+    c.execute("SELECT * FROM inventory")
     records = c.fetchall()
     global count
     count = 0
@@ -149,9 +151,9 @@ note_label.grid(row=1, column=6, padx=10, pady=10)
 note_entry = Entry(data_frame)
 note_entry.grid(row=1, column=7, padx=10, pady=10)
 
-#Select Record
-def select_record(e):
+#clear entry boxes
 
+def clear_entries():
     #Clear entry boxes
     id_entry.delete(0, END)
     name_entry.delete(0, END)
@@ -161,6 +163,11 @@ def select_record(e):
     price_entry.delete(0, END)
     location_entry.delete(0, END)
     note_entry.delete(0, END)
+
+#Select Record
+def select_record(e):
+
+    clear_entries()
 
     #Grab record number
     selected = my_tree.focus()
@@ -178,41 +185,16 @@ def select_record(e):
     location_entry.insert(0, values[6])
     note_entry.insert(0, values[7])
 
-#Clear Entry Boxes
-def clear_entries():
-
-    #Clear entry boxes
-    id_entry.delete(0, END)
-    name_entry.delete(0, END)
-    tcg_entry.delete(0, END)
-    type_entry.delete(0, END)
-    amount_entry.delete(0, END)
-    price_entry.delete(0, END)
-    location_entry.delete(0, END)
-    note_entry.delete(0, END)
-
-#Move Row Up
-def move_up():
-    rows = my_tree.selection()
-    for row in rows:
-        my_tree.move(row, my_tree.parent(row), my_tree.index(row)-1)
-
-#Move Row Down
-def move_down():
-    rows = my_tree.selection()
-    for row in reversed(rows):
-        my_tree.move(row, my_tree.parent(row), my_tree.index(row)+1)
-
 #Update Selected Record
 def update_record():
     selected = my_tree.focus()
     my_tree.item(selected, text="", values=(id_entry.get(), name_entry.get(), tcg_entry.get(), type_entry.get(), amount_entry.get(), price_entry.get(), location_entry.get(), note_entry.get(),))
 
     #update the database
-    conn = sqlite3.connect('card.db')
+    conn = sqlite3.connect('inventoryManager.db')
     c = conn.cursor()
 
-    c.execute("""UPDATE cards SET
+    c.execute("""UPDATE inventory SET
                         card_name = :name,
                         card_tcg = :tcg,
                         card_type = :type,
@@ -236,23 +218,15 @@ def update_record():
     conn.commit()
     conn.close()
 
-    #Clear entry boxes
-    id_entry.delete(0, END)
-    name_entry.delete(0, END)
-    tcg_entry.delete(0, END)
-    type_entry.delete(0, END)
-    amount_entry.delete(0, END)
-    price_entry.delete(0, END)
-    location_entry.delete(0, END)
-    note_entry.delete(0, END)
+    clear_entries()
 
 #add a new record to db
 def add_record():
 
-    conn = sqlite3.connect('card.db')
+    conn = sqlite3.connect('inventoryManager.db')
     c = conn.cursor()
 
-    c.execute("INSERT INTO cards VALUES (:id, :name, :tcg, :type, :amount, :price, :location, :note)",
+    c.execute("INSERT INTO inventory VALUES (:id, :name, :tcg, :type, :amount, :price, :location, :note)",
                    {
                         'id': id_entry.get(),
                         'name': name_entry.get(),
@@ -266,15 +240,8 @@ def add_record():
 
     conn.commit()
     conn.close()
-    #Clear entry boxes
-    id_entry.delete(0, END)
-    name_entry.delete(0, END)
-    tcg_entry.delete(0, END)
-    type_entry.delete(0, END)
-    amount_entry.delete(0, END)
-    price_entry.delete(0, END)
-    location_entry.delete(0, END)
-    note_entry.delete(0, END)
+
+    clear_entries()
 
     #clear the treeview table
     my_tree.delete(*my_tree.get_children())
@@ -283,49 +250,66 @@ def add_record():
 #delete entry in db
 def delete_record():
     
-    conn = sqlite3.connect('card.db')
+    conn = sqlite3.connect('inventoryManager.db')
     c = conn.cursor()
 
-    c.execute("DELETE FROM cards WHERE card_id =" + id_entry.get())
+    c.execute("DELETE FROM inventory WHERE card_id =" + id_entry.get())
 
     conn.commit()
     conn.close()
-    #Clear entry boxes
-    id_entry.delete(0, END)
-    name_entry.delete(0, END)
-    tcg_entry.delete(0, END)
-    type_entry.delete(0, END)
-    amount_entry.delete(0, END)
-    price_entry.delete(0, END)
-    location_entry.delete(0, END)
-    note_entry.delete(0, END)
+
+    clear_entries()
 
     #clear the treeview table
     my_tree.delete(*my_tree.get_children())
     query_database()
 
+#search database
+def search_record():
+    my_tree.delete(*my_tree.get_children())
+
+    conn = sqlite3.connect('inventoryManager.db')
+    c = conn.cursor()
+
+    c.execute("SELECT * FROM inventory WHERE card_id=" + id_entry.get())
+    records = c.fetchall()
+    global count
+    count = 0
+
+    for record in records:
+        if count % 2 == 0:
+            my_tree.insert(parent='', index='end', iid=count, text='', values=(record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7]), tags=('evenrow',))
+        else:
+            my_tree.insert(parent='', index='end', iid=count, text='', values=(record[0], record[1], record[2], record[3], record[4], record[5], record[6], record[7]), tags=('oddrow',))
+
+        count += 1
+
+    conn.commit()
+    conn.close()
+
+    clear_entries()
 
 #Add buttons
 button_frame = LabelFrame(root, text="Commands")
 button_frame.pack(fill="x", expand="yes", padx=20)
 
-update_button = Button(button_frame, text="Update Record", command = update_record)
-update_button.grid(row=0, column=0, padx=10, pady=10)
-
 add_button = Button(button_frame, text="Add Record", command = add_record)
-add_button.grid(row=0, column=1, padx=10, pady=10)
+add_button.grid(row=0, column=0, padx=10, pady=10)
+
+update_button = Button(button_frame, text="Update Record", command = update_record)
+update_button.grid(row=0, column=1, padx=10, pady=10)
 
 remove_selected_button = Button(button_frame, text="Delete Selected", command = delete_record)
-remove_selected_button.grid(row=0, column=4, padx=10, pady=10)
+remove_selected_button.grid(row=0, column=2, padx=10, pady=10)
 
-move_up_button = Button(button_frame, text="Move Up", command = move_up)
-move_up_button.grid(row=0, column=5, padx=10, pady=10)
+remove_selected_button = Button(button_frame, text="Search", command = search_record)
+remove_selected_button.grid(row=0, column=3, padx=10, pady=10)
 
-move_down_button = Button(button_frame, text="Move Down", command = move_down)
-move_down_button.grid(row=0, column=6, padx=10, pady=10)
+clear_record_button = Button(button_frame, text="Clear Entries", command = clear_entries)
+clear_record_button.grid(row=0, column=4, padx=10, pady=10)
 
-clear_record_button = Button(button_frame, text="Clear", command = clear_entries)
-clear_record_button.grid(row=0, column=7, padx=10, pady=10)
+clear_record_button = Button(button_frame, text="Reset View", command = query_database)
+clear_record_button.grid(row=0, column=5, padx=10, pady=10)
 
 #Bind the treeview
 
