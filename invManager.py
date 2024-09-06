@@ -253,7 +253,7 @@ def delete_record():
     conn = sqlite3.connect('inventoryManager.db')
     c = conn.cursor()
 
-    c.execute("DELETE FROM inventory WHERE card_id =" + id_entry.get())
+    c.execute("DELETE FROM inventory WHERE card_id = ?", (id_entry.get(),))
 
     conn.commit()
     conn.close()
@@ -271,7 +271,7 @@ def search_record():
     conn = sqlite3.connect('inventoryManager.db')
     c = conn.cursor()
 
-    c.execute("SELECT * FROM inventory WHERE card_id=" + id_entry.get())
+    c.execute("SELECT * FROM inventory WHERE card_id = ?", (id_entry.get(),))
     records = c.fetchall()
     global count
     count = 0
